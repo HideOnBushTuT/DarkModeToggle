@@ -32,7 +32,7 @@ GitHub 账号。
 https://github.com/HideOnBushTuT/DarkModeToggle.git
 ```
 
-依赖规则选择 **Up to Next Major Version**，起始版本为 `1.0.0`。
+依赖规则选择 **Up to Next Major Version**，起始版本为 `2.0.0`。
 
 也可以在另一个 Package 的 `Package.swift` 中声明：
 
@@ -40,7 +40,7 @@ https://github.com/HideOnBushTuT/DarkModeToggle.git
 dependencies: [
     .package(
         url: "https://github.com/HideOnBushTuT/DarkModeToggle.git",
-        from: "1.0.0"
+        from: "2.0.0"
     )
 ],
 targets: [
@@ -65,7 +65,7 @@ targets: [
 import DarkModeSwitchDemoFeature
 import SwiftUI
 
-struct AppearanceSettingsView: View {
+struct ContentView: View {
     @AppStorage("isDarkMode") private var isDarkMode = false
 
     var body: some View {
@@ -81,21 +81,16 @@ struct AppearanceSettingsView: View {
 
 ## 对外 API
 
-Package 对外暴露两个 SwiftUI View：
+Package 对外只暴露可复用的开关 View：
 
 ```swift
 public struct DarkModeToggle: View {
     public init(isDarkMode: Binding<Bool>)
 }
-
-public struct ContentView: View {
-    public init()
-}
 ```
 
-- `DarkModeToggle` 是可复用组件，适合接入现有页面。
-- `ContentView` 是演示容器，内部使用
-  `@AppStorage("isDarkMode")` 并应用 `.preferredColorScheme`。
+页面布局、状态持久化和 App 外观由使用方自己的 `ContentView` 或其他容器
+管理，不属于 Package 的公开 API。
 
 ## 内部实现
 
@@ -156,12 +151,13 @@ xcodebuildmcp swift-package test \
   --configuration Debug
 ```
 
-当前 4 项测试锁定：
+当前 5 项测试锁定：
 
 - 原始组件、轨道和天体画板的缩放关系。
 - 明暗状态的天体位移与移动距离。
 - 四组云层的数量、圆形数据、透明度和循环时长。
 - 22 颗星星的数量、坐标、分组与闪烁时长。
+- App 层 `ContentView.swift` 不会重新进入可复用 Package。
 
 ## 版本规则
 
@@ -171,9 +167,15 @@ xcodebuildmcp swift-package test \
 - Minor：向后兼容的新能力或公开 API。
 - Major：模块名、公开初始化方法或行为的不兼容修改。
 
-首个版本为 `1.0.0`。App 使用
-`upToNextMajorVersion(from: "1.0.0")`，因此会接受 `1.x` 更新但不会
-自动升级到 `2.0.0`。
+当前版本为 `2.0.0`。App 使用
+`upToNextMajorVersion(from: "2.0.0")`，因此会接受 `2.x` 更新但不会
+自动升级到 `3.0.0`。
+
+版本历史：
+
+- `2.0.0`：删除 Package 的演示 `ContentView`；状态持久化、页面背景和
+  App 外观由使用方管理。
+- `1.0.0`：首次发布，包含动画组件和初始演示容器。
 
 ## 来源与许可证
 
