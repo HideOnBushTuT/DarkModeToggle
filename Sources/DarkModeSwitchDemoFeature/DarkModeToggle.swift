@@ -16,6 +16,7 @@ public struct DarkModeToggle: View {
     @State private var dragStartProgress: CGFloat?
     @State private var dragOriginTranslationX: CGFloat?
     @State private var dragAxis: DarkModeToggleDragAxis?
+    @State private var suppressActivation = false
 
     public init(isDarkMode: Binding<Bool>) {
         _isDarkMode = isDarkMode
@@ -28,6 +29,11 @@ public struct DarkModeToggle: View {
 
     public var body: some View {
         Button {
+            guard !suppressActivation else {
+                suppressActivation = false
+                return
+            }
+
             settle(to: !isDarkMode, source: .activation)
         } label: {
             GeometryReader { proxy in
@@ -51,7 +57,7 @@ public struct DarkModeToggle: View {
                 )
             }
         }
-        .buttonStyle(DarkModeToggleButtonStyle())
+        .buttonStyle(.plain)
         .aspectRatio(
             DarkModeToggleMetrics.referenceComponentSize.width
                 / DarkModeToggleMetrics.referenceComponentSize.height,
@@ -89,6 +95,7 @@ public struct DarkModeToggle: View {
         travel: CGFloat
     ) {
         if dragAxis == nil {
+            suppressActivation = true
             dragAxis = DarkModeToggleInteraction.axis(for: value.translation)
             dragStartProgress = presentedProgress
             dragOriginTranslationX = value.translation.width
@@ -112,6 +119,8 @@ public struct DarkModeToggle: View {
     }
 
     private func dragEnded(_ value: DragGesture.Value, travel: CGFloat) {
+        defer { clearSuppressionAfterGesture() }
+
         guard dragAxis == .horizontal,
               let dragStartProgress,
               let dragOriginTranslationX else {
@@ -187,6 +196,12 @@ public struct DarkModeToggle: View {
         dragAxis = nil
     }
 
+    private func clearSuppressionAfterGesture() {
+        Task { @MainActor in
+            suppressActivation = false
+        }
+    }
+
     private enum CommitSource {
         case activation
         case drag
@@ -240,17 +255,6 @@ private struct DarkModeToggleVisuals: View, @MainActor Animatable {
             }
             .onEnded(onDragEnded)
         )
-    }
-}
-
-private struct DarkModeToggleButtonStyle: PrimitiveButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .contentShape(Rectangle())
-            .gesture(
-                TapGesture()
-                    .onEnded { configuration.trigger() }
-            )
     }
 }
 
