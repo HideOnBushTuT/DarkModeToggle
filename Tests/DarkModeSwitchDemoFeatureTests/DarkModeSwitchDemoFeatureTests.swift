@@ -37,7 +37,73 @@ struct DarkModeToggleMetricsTests {
 
         #expect(abs(metrics.translationX(isDarkMode: false) - (-90.17341040)) < 0.0001)
         #expect(abs(metrics.translationX(isDarkMode: true) - (-22.54335260)) < 0.0001)
+        #expect(abs(metrics.translationX(progress: 0.5) - (-56.35838150)) < 0.0001)
         #expect(abs(metrics.translationTravel - 67.63005780) < 0.0001)
+    }
+}
+
+@Suite("Dark mode toggle interaction")
+struct DarkModeToggleInteractionTests {
+    @Test("maps binding endpoints to normalized progress")
+    func restingProgress() {
+        #expect(DarkModeToggleInteraction.restingProgress(isDarkMode: false) == 0)
+        #expect(DarkModeToggleInteraction.restingProgress(isDarkMode: true) == 1)
+    }
+
+    @Test("normalizes symmetric translations and clamps both bounds")
+    func translatedProgress() {
+        #expect(DarkModeToggleInteraction.progress(
+            startingAt: 0,
+            translation: 25,
+            travel: 100
+        ) == 0.25)
+        #expect(DarkModeToggleInteraction.progress(
+            startingAt: 1,
+            translation: -25,
+            travel: 100
+        ) == 0.75)
+        #expect(DarkModeToggleInteraction.progress(
+            startingAt: 0,
+            translation: -20,
+            travel: 100
+        ) == 0)
+        #expect(DarkModeToggleInteraction.progress(
+            startingAt: 1,
+            translation: 20,
+            travel: 100
+        ) == 1)
+    }
+
+    @Test("selects an axis from the dominant translation")
+    func dragAxis() {
+        #expect(DarkModeToggleInteraction.axis(
+            for: CGSize(width: 12, height: 4)
+        ) == .horizontal)
+        #expect(DarkModeToggleInteraction.axis(
+            for: CGSize(width: 4, height: 12)
+        ) == .vertical)
+        #expect(DarkModeToggleInteraction.axis(
+            for: CGSize(width: 8, height: 8)
+        ) == .vertical)
+    }
+
+    @Test("uses predicted progress and a dark-inclusive midpoint")
+    func predictedTarget() {
+        #expect(!DarkModeToggleInteraction.targetIsDark(
+            startingAt: 0,
+            predictedTranslation: 49,
+            travel: 100
+        ))
+        #expect(DarkModeToggleInteraction.targetIsDark(
+            startingAt: 0,
+            predictedTranslation: 50,
+            travel: 100
+        ))
+        #expect(!DarkModeToggleInteraction.targetIsDark(
+            startingAt: 1,
+            predictedTranslation: -51,
+            travel: 100
+        ))
     }
 }
 

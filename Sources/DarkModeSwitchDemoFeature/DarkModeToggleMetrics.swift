@@ -38,7 +38,18 @@ struct DarkModeToggleMetrics: Sendable {
         (Self.darkTranslationX - Self.lightTranslationX) * celestialScale
     }
 
+    func translationX(progress: CGFloat) -> CGFloat {
+        let clampedProgress = min(max(progress, 0), 1)
+        let sourceTranslation = Self.lightTranslationX
+            + (Self.darkTranslationX - Self.lightTranslationX) * clampedProgress
+        return sourceTranslation * celestialScale
+    }
+
     func translationX(isDarkMode: Bool) -> CGFloat {
-        (isDarkMode ? Self.darkTranslationX : Self.lightTranslationX) * celestialScale
+        translationX(
+            progress: DarkModeToggleInteraction.restingProgress(
+                isDarkMode: isDarkMode
+            )
+        )
     }
 }
