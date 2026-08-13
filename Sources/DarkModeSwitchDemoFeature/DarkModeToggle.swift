@@ -11,41 +11,47 @@ enum TogglePalette {
 public struct DarkModeToggle: View {
     @Binding private var isDarkMode: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var committedProgress: CGFloat
+    @State private var dragProgress: CGFloat?
+    @State private var dragStartProgress: CGFloat?
+    @State private var dragOriginTranslationX: CGFloat?
+    @State private var dragAxis: DarkModeToggleDragAxis?
 
     public init(isDarkMode: Binding<Bool>) {
         _isDarkMode = isDarkMode
+        _committedProgress = State(
+            initialValue: DarkModeToggleInteraction.restingProgress(
+                isDarkMode: isDarkMode.wrappedValue
+            )
+        )
     }
 
     public var body: some View {
         Button {
-            isDarkMode.toggle()
+            settle(to: !isDarkMode, source: .activation)
         } label: {
             GeometryReader { proxy in
                 let metrics = DarkModeToggleMetrics(width: proxy.size.width)
 
-                ZStack(alignment: .topLeading) {
-                    ToggleTrack(
-                        isDarkMode: isDarkMode,
-                        metrics: metrics,
-                        reduceMotion: reduceMotion
-                    )
-                    .offset(y: (metrics.componentHeight - metrics.trackHeight) / 2)
-
-                    CelestialThumb(
-                        isDarkMode: isDarkMode,
-                        metrics: metrics,
-                        reduceMotion: reduceMotion
-                    )
-                }
-                .frame(
-                    width: metrics.width,
-                    height: metrics.componentHeight,
-                    alignment: .topLeading
+                DarkModeToggleVisuals(
+                    appearanceProgress: appearanceProgress,
+                    positionProgress: positionProgress,
+                    metrics: metrics,
+                    reduceMotion: reduceMotion,
+                    onDragChanged: { value, presentedProgress in
+                        dragChanged(
+                            value,
+                            presentedProgress: presentedProgress,
+                            travel: metrics.translationTravel
+                        )
+                    },
+                    onDragEnded: { value in
+                        dragEnded(value, travel: metrics.translationTravel)
+                    }
                 )
-                .contentShape(Rectangle())
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DarkModeToggleButtonStyle())
         .aspectRatio(
             DarkModeToggleMetrics.referenceComponentSize.width
                 / DarkModeToggleMetrics.referenceComponentSize.height,
@@ -56,38 +62,238 @@ public struct DarkModeToggle: View {
         .accessibilityHint("Double tap to change appearance")
         .accessibilityIdentifier("darkModeToggle")
         .accessibilityAddTraits(isDarkMode ? .isSelected : [])
+        .onChange(of: isDarkMode) { _, newValue in
+            synchronizeCommittedProgress(isDarkMode: newValue)
+        }
+    }
+
+    private var endpointProgress: CGFloat {
+        DarkModeToggleInteraction.restingProgress(isDarkMode: isDarkMode)
+    }
+
+    private var appearanceProgress: CGFloat {
+        dragProgress ?? committedProgress
+    }
+
+    private var positionProgress: CGFloat {
+        if let dragProgress {
+            return dragProgress
+        }
+
+        return reduceMotion ? endpointProgress : committedProgress
+    }
+
+    private func dragChanged(
+        _ value: DragGesture.Value,
+        presentedProgress: CGFloat,
+        travel: CGFloat
+    ) {
+        if dragAxis == nil {
+            dragAxis = DarkModeToggleInteraction.axis(for: value.translation)
+            dragStartProgress = presentedProgress
+            dragOriginTranslationX = value.translation.width
+        }
+
+        guard dragAxis == .horizontal,
+              let dragStartProgress,
+              let dragOriginTranslationX else {
+            return
+        }
+
+        var transaction = Transaction()
+        transaction.animation = nil
+        withTransaction(transaction) {
+            dragProgress = DarkModeToggleInteraction.progress(
+                startingAt: dragStartProgress,
+                translation: value.translation.width - dragOriginTranslationX,
+                travel: travel
+            )
+        }
+    }
+
+    private func dragEnded(_ value: DragGesture.Value, travel: CGFloat) {
+        guard dragAxis == .horizontal,
+              let dragStartProgress,
+              let dragOriginTranslationX else {
+            resetGesture()
+            return
+        }
+
+        let targetIsDark = DarkModeToggleInteraction.targetIsDark(
+            startingAt: dragStartProgress,
+            predictedTranslation: value.predictedEndTranslation.width
+                - dragOriginTranslationX,
+            travel: travel
+        )
+        settle(to: targetIsDark, source: .drag)
+    }
+
+    private func settle(to targetIsDark: Bool, source: CommitSource) {
+        let targetProgress = DarkModeToggleInteraction.restingProgress(
+            isDarkMode: targetIsDark
+        )
+
+        if reduceMotion, source == .activation {
+            if isDarkMode != targetIsDark {
+                isDarkMode = targetIsDark
+            }
+            dragProgress = nil
+            resetGestureMetadata()
+
+            withAnimation(.easeOut(duration: 0.2)) {
+                committedProgress = targetProgress
+            }
+            return
+        }
+
+        let animation: Animation = reduceMotion
+            ? .easeOut(duration: 0.2)
+            : .spring(response: 0.35, dampingFraction: 0.82)
+
+        withAnimation(animation) {
+            if isDarkMode != targetIsDark {
+                isDarkMode = targetIsDark
+            }
+            committedProgress = targetProgress
+            dragProgress = nil
+        }
+        resetGestureMetadata()
+    }
+
+    private func synchronizeCommittedProgress(isDarkMode: Bool) {
+        guard dragAxis == nil, dragProgress == nil else { return }
+
+        let targetProgress = DarkModeToggleInteraction.restingProgress(
+            isDarkMode: isDarkMode
+        )
+        guard committedProgress != targetProgress else { return }
+
+        let animation: Animation = reduceMotion
+            ? .easeOut(duration: 0.2)
+            : .spring(response: 0.35, dampingFraction: 0.82)
+        withAnimation(animation) {
+            committedProgress = targetProgress
+        }
+    }
+
+    private func resetGesture() {
+        dragProgress = nil
+        resetGestureMetadata()
+    }
+
+    private func resetGestureMetadata() {
+        dragStartProgress = nil
+        dragOriginTranslationX = nil
+        dragAxis = nil
+    }
+
+    private enum CommitSource {
+        case activation
+        case drag
+    }
+}
+
+private struct DarkModeToggleVisuals: View, @MainActor Animatable {
+    var appearanceProgress: CGFloat
+    var positionProgress: CGFloat
+    let metrics: DarkModeToggleMetrics
+    let reduceMotion: Bool
+    let onDragChanged: (DragGesture.Value, CGFloat) -> Void
+    let onDragEnded: (DragGesture.Value) -> Void
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(appearanceProgress, positionProgress) }
+        set {
+            appearanceProgress = newValue.first
+            positionProgress = newValue.second
+        }
+    }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            ToggleTrack(
+                progress: appearanceProgress,
+                metrics: metrics,
+                reduceMotion: reduceMotion
+            )
+            .offset(y: (metrics.componentHeight - metrics.trackHeight) / 2)
+
+            CelestialThumb(
+                appearanceProgress: appearanceProgress,
+                positionProgress: positionProgress,
+                metrics: metrics
+            )
+        }
+        .frame(
+            width: metrics.width,
+            height: metrics.componentHeight,
+            alignment: .topLeading
+        )
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            DragGesture(
+                minimumDistance: DarkModeToggleInteraction.dragThreshold,
+                coordinateSpace: .local
+            )
+            .onChanged { value in
+                onDragChanged(value, positionProgress)
+            }
+            .onEnded(onDragEnded)
+        )
+    }
+}
+
+private struct DarkModeToggleButtonStyle: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .contentShape(Rectangle())
+            .gesture(
+                TapGesture()
+                    .onEnded { configuration.trigger() }
+            )
     }
 }
 
 private struct ToggleTrack: View {
-    let isDarkMode: Bool
+    let progress: CGFloat
     let metrics: DarkModeToggleMetrics
     let reduceMotion: Bool
 
     var body: some View {
         let scale = metrics.trackScale
+        let clampedProgress = min(max(progress, 0), 1)
 
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 33.15 * scale, style: .continuous)
-                .fill(isDarkMode ? TogglePalette.nightSky : TogglePalette.daySky)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 33.15 * scale, style: .continuous)
-                        .stroke(
-                            borderGradient,
-                            lineWidth: 1.3 * scale
-                        )
-                }
+                .fill(TogglePalette.daySky)
+                .frame(width: 170.3 * scale, height: 66.3 * scale)
+                .offset(x: 1.35 * scale, y: 1.35 * scale)
+
+            RoundedRectangle(cornerRadius: 33.15 * scale, style: .continuous)
+                .fill(TogglePalette.nightSky)
+                .opacity(clampedProgress)
+                .frame(width: 170.3 * scale, height: 66.3 * scale)
+                .offset(x: 1.35 * scale, y: 1.35 * scale)
+
+            RoundedRectangle(cornerRadius: 33.15 * scale, style: .continuous)
+                .stroke(dayBorderGradient, lineWidth: 1.3 * scale)
+                .opacity(1 - clampedProgress)
+                .frame(width: 170.3 * scale, height: 66.3 * scale)
+                .offset(x: 1.35 * scale, y: 1.35 * scale)
+
+            RoundedRectangle(cornerRadius: 33.15 * scale, style: .continuous)
+                .stroke(nightBorderGradient, lineWidth: 1.3 * scale)
+                .opacity(clampedProgress)
                 .frame(width: 170.3 * scale, height: 66.3 * scale)
                 .offset(x: 1.35 * scale, y: 1.35 * scale)
 
             ZStack(alignment: .topLeading) {
                 DayScene(reduceMotion: reduceMotion)
-                    .opacity(isDarkMode ? 0 : 1)
+                    .opacity(1 - clampedProgress)
 
                 NightScene(reduceMotion: reduceMotion)
-                    .opacity(isDarkMode ? 1 : 0)
+                    .opacity(clampedProgress)
             }
-            .animation(crossfadeAnimation, value: isDarkMode)
             .mask(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 32.5 * scale, style: .continuous)
                     .frame(width: 169 * scale, height: 65 * scale)
@@ -95,7 +301,15 @@ private struct ToggleTrack: View {
             }
 
             RoundedRectangle(cornerRadius: 32.5 * scale, style: .continuous)
-                .strokeBorder(innerEdgeGradient, lineWidth: 3.2 * scale)
+                .strokeBorder(dayInnerEdgeGradient, lineWidth: 3.2 * scale)
+                .opacity(1 - clampedProgress)
+                .frame(width: 169 * scale, height: 65 * scale)
+                .offset(x: 2 * scale, y: 2 * scale)
+                .allowsHitTesting(false)
+
+            RoundedRectangle(cornerRadius: 32.5 * scale, style: .continuous)
+                .strokeBorder(nightInnerEdgeGradient, lineWidth: 3.2 * scale)
+                .opacity(clampedProgress)
                 .frame(width: 169 * scale, height: 65 * scale)
                 .offset(x: 2 * scale, y: 2 * scale)
                 .allowsHitTesting(false)
@@ -104,25 +318,44 @@ private struct ToggleTrack: View {
         .drawingGroup()
     }
 
-    private var crossfadeAnimation: Animation {
-        reduceMotion ? .easeOut(duration: 0.2) : .easeInOut(duration: 0.5)
-    }
-
-    private var borderGradient: LinearGradient {
+    private var dayBorderGradient: LinearGradient {
         LinearGradient(
-            colors: isDarkMode
-                ? [Color.black.opacity(0.65), Color.white.opacity(0.04)]
-                : [Color(red: 108 / 255, green: 184 / 255, blue: 1), Color.white.opacity(0)],
+            colors: [
+                Color(red: 108 / 255, green: 184 / 255, blue: 1),
+                Color.white.opacity(0),
+            ],
             startPoint: .top,
             endPoint: .bottom
         )
     }
 
-    private var innerEdgeGradient: LinearGradient {
+    private var nightBorderGradient: LinearGradient {
         LinearGradient(
-            colors: isDarkMode
-                ? [Color.black.opacity(0.58), Color.clear, Color.white.opacity(0.04)]
-                : [Color.white.opacity(0.2), Color.clear, Color(red: 114 / 255, green: 187 / 255, blue: 1).opacity(0.58)],
+            colors: [Color.black.opacity(0.65), Color.white.opacity(0.04)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    private var dayInnerEdgeGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(0.2),
+                Color.clear,
+                Color(red: 114 / 255, green: 187 / 255, blue: 1).opacity(0.58),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    private var nightInnerEdgeGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.black.opacity(0.58),
+                Color.clear,
+                Color.white.opacity(0.04),
+            ],
             startPoint: .top,
             endPoint: .bottom
         )

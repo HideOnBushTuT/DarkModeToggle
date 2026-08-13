@@ -1,21 +1,20 @@
 import SwiftUI
 
 struct CelestialThumb: View {
-    let isDarkMode: Bool
+    let appearanceProgress: CGFloat
+    let positionProgress: CGFloat
     let metrics: DarkModeToggleMetrics
-    let reduceMotion: Bool
 
     var body: some View {
         let scale = metrics.celestialScale
+        let clampedAppearanceProgress = min(max(appearanceProgress, 0), 1)
 
         ZStack(alignment: .topLeading) {
             SunDisc(scale: scale)
-                .opacity(isDarkMode ? 0 : 1)
-                .animation(crossfadeAnimation, value: isDarkMode)
+                .opacity(1 - clampedAppearanceProgress)
 
             MoonDisc(scale: scale)
-                .opacity(isDarkMode ? 1 : 0)
-                .animation(crossfadeAnimation, value: isDarkMode)
+                .opacity(clampedAppearanceProgress)
         }
         .frame(
             width: DarkModeToggleMetrics.celestialArtboard.width * scale,
@@ -23,20 +22,10 @@ struct CelestialThumb: View {
             alignment: .topLeading
         )
         .offset(
-            x: metrics.translationX(isDarkMode: isDarkMode),
+            x: metrics.translationX(progress: positionProgress),
             y: metrics.celestialVerticalInset
         )
-        .animation(translationAnimation, value: isDarkMode)
         .allowsHitTesting(false)
-    }
-
-    private var crossfadeAnimation: Animation {
-        reduceMotion ? .easeOut(duration: 0.2) : .easeInOut(duration: 0.5)
-    }
-
-    private var translationAnimation: Animation? {
-        guard !reduceMotion else { return nil }
-        return .timingCurve(0.25, 0.1, 0.25, 1, duration: 1)
     }
 }
 
