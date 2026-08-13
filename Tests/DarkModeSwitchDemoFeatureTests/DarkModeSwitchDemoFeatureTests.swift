@@ -1,5 +1,23 @@
+import Foundation
 import Testing
 @testable import DarkModeSwitchDemoFeature
+
+@Suite("Package boundaries")
+struct PackageBoundaryTests {
+    @Test("keeps application ContentView out of the package")
+    func excludesApplicationContentView() {
+        let packageRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let appContentView = packageRoot
+            .appending(path: "Sources")
+            .appending(path: "DarkModeSwitchDemoFeature")
+            .appending(path: "ContentView.swift")
+
+        #expect(!FileManager.default.fileExists(atPath: appContentView.path))
+    }
+}
 
 @Suite("Dark mode toggle metrics")
 struct DarkModeToggleMetricsTests {
