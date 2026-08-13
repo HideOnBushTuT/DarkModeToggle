@@ -34,7 +34,7 @@ GitHub 账号。
 https://github.com/HideOnBushTuT/DarkModeToggle.git
 ```
 
-依赖规则选择 **Up to Next Major Version**，起始版本为 `3.0.0`。
+依赖规则选择 **Up to Next Major Version**，起始版本为 `3.0.1`。
 
 也可以在另一个 Package 的 `Package.swift` 中声明：
 
@@ -42,7 +42,7 @@ https://github.com/HideOnBushTuT/DarkModeToggle.git
 dependencies: [
     .package(
         url: "https://github.com/HideOnBushTuT/DarkModeToggle.git",
-        from: "3.0.0"
+        from: "3.0.1"
     )
 ],
 targets: [
@@ -183,12 +183,14 @@ xcodebuildmcp swift-package test \
 - Minor：向后兼容的新能力或公开 API。
 - Major：模块名、公开初始化方法或行为的不兼容修改。
 
-当前版本为 `3.0.0`。App 使用
-`upToNextMajorVersion(from: "3.0.0")`，因此会接受 `3.x` 更新。已有
+当前版本为 `3.0.1`。App 使用
+`upToNextMajorVersion(from: "3.0.1")`，因此会接受 `3.x` 更新。已有
 `2.x` 使用方不会自动获得新的拖动行为，需要明确升级。
 
 版本历史：
 
+- `3.0.1`：恢复系统标准 Button 点击/VoiceOver 激活通道，仅在拖动序列中抑制
+  重复 action，修复自动化与真实点击偶发丢失。
 - `3.0.0`：增加连续水平拖动、预测终点吸附，并让天体和日夜场景共享同一个
   呈现进度；公开的 `Binding<Bool>` 初始化方法保持不变。
 - `2.0.0`：删除 Package 的演示 `ContentView`；状态持久化、页面背景和
