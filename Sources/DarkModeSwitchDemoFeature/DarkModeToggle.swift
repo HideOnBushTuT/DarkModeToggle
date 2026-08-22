@@ -10,6 +10,7 @@ enum TogglePalette {
 
 public struct DarkModeToggle: View {
     @Binding private var isDarkMode: Bool
+    private let visualStyle: DarkModeToggleVisualStyle
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var committedProgress: CGFloat
     @State private var dragProgress: CGFloat?
@@ -19,7 +20,19 @@ public struct DarkModeToggle: View {
     @State private var suppressActivation = false
 
     public init(isDarkMode: Binding<Bool>) {
+        self.init(isDarkMode: isDarkMode, visualStyle: .original)
+    }
+
+    public init(vividIsDarkMode: Binding<Bool>) {
+        self.init(isDarkMode: vividIsDarkMode, visualStyle: .vivid)
+    }
+
+    private init(
+        isDarkMode: Binding<Bool>,
+        visualStyle: DarkModeToggleVisualStyle
+    ) {
         _isDarkMode = isDarkMode
+        self.visualStyle = visualStyle
         _committedProgress = State(
             initialValue: DarkModeToggleInteraction.restingProgress(
                 isDarkMode: isDarkMode.wrappedValue
@@ -42,6 +55,7 @@ public struct DarkModeToggle: View {
                 DarkModeToggleVisuals(
                     appearanceProgress: appearanceProgress,
                     positionProgress: positionProgress,
+                    visualStyle: visualStyle,
                     metrics: metrics,
                     reduceMotion: reduceMotion,
                     onDragChanged: { value, presentedProgress in
@@ -208,9 +222,15 @@ public struct DarkModeToggle: View {
     }
 }
 
+enum DarkModeToggleVisualStyle: Sendable {
+    case original
+    case vivid
+}
+
 private struct DarkModeToggleVisuals: View, @MainActor Animatable {
     var appearanceProgress: CGFloat
     var positionProgress: CGFloat
+    let visualStyle: DarkModeToggleVisualStyle
     let metrics: DarkModeToggleMetrics
     let reduceMotion: Bool
     let onDragChanged: (DragGesture.Value, CGFloat) -> Void
@@ -226,17 +246,14 @@ private struct DarkModeToggleVisuals: View, @MainActor Animatable {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            ToggleTrack(
-                progress: appearanceProgress,
-                metrics: metrics,
-                reduceMotion: reduceMotion
-            )
+            track
             .offset(y: (metrics.componentHeight - metrics.trackHeight) / 2)
 
             CelestialThumb(
                 appearanceProgress: appearanceProgress,
                 positionProgress: positionProgress,
-                metrics: metrics
+                metrics: metrics,
+                visualStyle: visualStyle
             )
         }
         .frame(
@@ -255,6 +272,24 @@ private struct DarkModeToggleVisuals: View, @MainActor Animatable {
             }
             .onEnded(onDragEnded)
         )
+    }
+
+    @ViewBuilder
+    private var track: some View {
+        switch visualStyle {
+        case .original:
+            ToggleTrack(
+                progress: appearanceProgress,
+                metrics: metrics,
+                reduceMotion: reduceMotion
+            )
+        case .vivid:
+            VividToggleTrack(
+                progress: appearanceProgress,
+                metrics: metrics,
+                reduceMotion: reduceMotion
+            )
+        }
     }
 }
 
@@ -381,4 +416,22 @@ private struct ToggleTrack: View {
         .frame(width: 260)
         .padding()
         .background(Color(red: 83 / 255, green: 92 / 255, blue: 114 / 255))
+}
+
+#Preview("Vivid Light") {
+    @Previewable @State var isDarkMode = false
+
+    DarkModeToggle(vividIsDarkMode: $isDarkMode)
+        .frame(width: 260)
+        .padding()
+        .background(Color(red: 235 / 255, green: 246 / 255, blue: 1))
+}
+
+#Preview("Vivid Dark") {
+    @Previewable @State var isDarkMode = true
+
+    DarkModeToggle(vividIsDarkMode: $isDarkMode)
+        .frame(width: 260)
+        .padding()
+        .background(Color(red: 66 / 255, green: 66 / 255, blue: 66 / 255))
 }

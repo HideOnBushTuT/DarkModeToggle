@@ -1,6 +1,19 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import DarkModeSwitchDemoFeature
+
+@Suite("Public initializers")
+struct PublicInitializerTests {
+    @Test("constructs the original and vivid styles independently")
+    @MainActor
+    func constructsBothStyles() {
+        let binding = Binding.constant(false)
+
+        _ = DarkModeToggle(isDarkMode: binding)
+        _ = DarkModeToggle(vividIsDarkMode: binding)
+    }
+}
 
 @Suite("Package boundaries")
 struct PackageBoundaryTests {
@@ -131,5 +144,21 @@ struct DarkModeToggleArtTests {
         #expect(stars[0] == ArtStar(group: 1, x: 16.95, y: 23.45, radius: 1.95))
         #expect(stars[19] == ArtStar(group: 1, x: 83.25, y: 39.05, radius: 0.65))
         #expect(stars.last == ArtStar(group: 3, x: 45.55, y: 26.05, radius: 0.65))
+    }
+
+    @Test("keeps vivid artwork independent from the original artwork")
+    func vividArtwork() {
+        #expect(VividToggleArt.cloudGroups.count == 2)
+        #expect(VividToggleArt.cloudGroups.allSatisfy { $0.circles.count == 6 })
+        #expect(VividToggleArt.stars.count == 6)
+        #expect(VividToggleArt.stars.map(\.group) == [1, 2, 3, 4, 5, 6])
+        #expect(VividToggleArt.starDurations == [
+            1: 3.5,
+            2: 4.1,
+            3: 4.9,
+            4: 5.3,
+            5: 3,
+            6: 2.2,
+        ])
     }
 }

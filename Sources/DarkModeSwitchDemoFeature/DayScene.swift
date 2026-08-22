@@ -37,7 +37,7 @@ struct DayScene: View {
     }
 }
 
-private struct CloudGroupView: View {
+struct CloudGroupView: View {
     let group: CloudGroup
 
     var body: some View {
