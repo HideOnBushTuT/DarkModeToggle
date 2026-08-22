@@ -6,6 +6,7 @@ Kolodziejski 的 Power Apps `LightDarkModeAnimated` 视觉效果。
 - 支持 iOS 17+ 与 macOS 14+
 - 不依赖图片、Lottie 或第三方动画库
 - 接收标准 SwiftUI `Binding<Bool>`
+- 提供原始柔和样式和新增高饱和拟物样式，两者使用不同初始化方法
 - 支持点击与水平拖动，松手时按预测终点吸附
 - 支持 Reduce Motion 和 VoiceOver
 - 包含交互数学、几何与源素材数据回归测试
@@ -17,8 +18,10 @@ Kolodziejski 的 Power Apps `LightDarkModeAnimated` 视觉效果。
 
 组件在一个胶囊形轨道内组合两套场景：
 
-- 明亮状态显示蓝天、四组漂浮云层和太阳。
-- 黑暗状态显示深色天空、22 颗闪烁星星和月牙。
+- 原始样式在明亮状态显示柔和蓝天、四组漂浮云层和桃橙色太阳，在黑暗状态
+  显示深色天空、22 颗细小闪烁星星和月牙。
+- 新增高饱和样式使用亮黄色太阳、三层移动光环和厚云层；黑暗状态使用带三个
+  陨石坑的满月和 6 颗缩放闪烁的大四角星。
 - 水平拖动时，天体、天空、边框、云层和星星共享一个 `0...1` 进度并跟随手指。
 - 松手时使用预测终点选择明暗状态，并用可中断弹簧吸附到端点。
 - 用户开启“减弱动态效果”后，仍保留手指直接操控，但取消弹性吸附和无限循环。
@@ -78,6 +81,18 @@ struct ContentView: View {
 }
 ```
 
+原始初始化方法保持不变：
+
+```swift
+DarkModeToggle(isDarkMode: $isDarkMode)
+```
+
+需要使用新增高饱和样式时，改用独立初始化方法；无需传入样式枚举或配置参数：
+
+```swift
+DarkModeToggle(vividIsDarkMode: $isDarkMode)
+```
+
 `DarkModeToggle` 只负责展示与切换绑定值。是否持久化状态、是否把状态应用到
 整个 App，由调用方决定。
 
@@ -88,8 +103,13 @@ Package 对外只暴露可复用的开关 View：
 ```swift
 public struct DarkModeToggle: View {
     public init(isDarkMode: Binding<Bool>)
+    public init(vividIsDarkMode: Binding<Bool>)
 }
 ```
+
+`init(isDarkMode:)` 永远使用原始样式，`init(vividIsDarkMode:)` 永远使用新增
+高饱和样式。两个入口共享同一套状态、拖动、吸附和无障碍行为，后续增加新视觉
+不会改变现有调用方的效果。
 
 页面布局、状态持久化和 App 外观由使用方自己的 `ContentView` 或其他容器
 管理，不属于 Package 的公开 API。
@@ -101,11 +121,18 @@ DarkModeToggle
 ├── DarkModeToggleInteraction
 │   └── 进度、方向、钳制与预测终点
 ├── DarkModeToggleVisuals
-│   └── 可中断的当前呈现进度
-├── ToggleTrack
+│   ├── 可中断的当前呈现进度
+│   ├── ToggleTrack → 原始轨道
+│   └── VividToggleTrack → 高饱和轨道、光环和场景
+├── ToggleTrack（原始样式）
 │   ├── DayScene → 4 组 Canvas 云层
 │   └── NightScene → 22 个 FourPointStar
-└── CelestialThumb → SunDisc + MoonDisc
+├── VividToggleTrack（新增样式）
+│   ├── VividDayScene → 2 组 Canvas 厚云层
+│   └── VividNightScene → 6 个 FourPointStar
+└── CelestialThumb
+    ├── SunDisc + MoonDisc
+    └── VividSunDisc + VividMoonDisc
 ```
 
 主要文件职责：
@@ -117,6 +144,8 @@ DarkModeToggle
 - `DayScene.swift`：通过 `Canvas` 绘制并循环移动云层。
 - `NightScene.swift`：放置星星并按组循环改变透明度。
 - `CelestialThumb.swift`：太阳/月亮绘制、交叉淡入淡出和横向移动。
+- `VividToggleTrack.swift`：新增样式的配色、移动光环、厚云层和大星星组合。
+- `VividToggleArt.swift`：新增样式独立的云层与星星素材数据。
 - `FourPointStar.swift`：自定义四角星 `Shape`。
 
 组件保留原设计的 `130×80` 外部比例、`173×69` 轨道画板和
@@ -144,6 +173,8 @@ progress = clamp(startProgress + translationX / translationTravel, 0 ... 1)
 | Reduce Motion 自动收尾 | Ease-out `0.2s`，无弹性 |
 | 四组云层循环 | 3.5 / 4.5 / 2.5 / 5.5 秒 |
 | 四组星星闪烁 | 3 / 2 / 1 / 5 秒 |
+| 高饱和样式两组云层循环 | 4.8 / 6.2 秒 |
+| 高饱和样式六颗星星闪烁 | 3.5 / 4.1 / 4.9 / 5.3 / 3 / 2.2 秒 |
 
 天体层使用原始 X 位移 `-100 → -25`，再乘以当前缩放比例。云层从
 Y `+5` 移动至 `-10` 并自动往返。
@@ -165,7 +196,7 @@ xcodebuildmcp swift-package test \
   --configuration Debug
 ```
 
-当前 9 项测试锁定：
+当前 11 项测试锁定：
 
 - 原始组件、轨道和天体画板的缩放关系。
 - 明暗状态、中间进度的天体位移与移动距离。
@@ -173,6 +204,8 @@ xcodebuildmcp swift-package test \
 - 横纵轴判定与预测终点的中点规则。
 - 四组云层的数量、圆形数据、透明度和循环时长。
 - 22 颗星星的数量、坐标、分组与闪烁时长。
+- 两个公开初始化方法都能独立构建，并保持原入口兼容。
+- 新增样式的 2 组云层、6 颗星星及各自闪烁时长。
 - App 层 `ContentView.swift` 不会重新进入可复用 Package。
 
 ## 版本规则
@@ -201,5 +234,7 @@ xcodebuildmcp swift-package test \
 
 视觉设计和原始 Power Apps 实现来自 Kristine Kolodziejski 的
 [LightDarkModeAnimated](https://github.com/kristinekolodziejski/LightDarkModeAnimated)。
-原项目使用 MIT License，完整许可文本保存在
+新增高饱和样式参考 Xiumuzaidiao 的
+[Day-night-toggle-button](https://github.com/Xiumuzaidiao/Day-night-toggle-button)。
+两个项目的完整许可文本均保存在
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

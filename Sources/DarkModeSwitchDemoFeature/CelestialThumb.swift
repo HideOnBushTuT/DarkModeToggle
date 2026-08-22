@@ -4,16 +4,17 @@ struct CelestialThumb: View {
     let appearanceProgress: CGFloat
     let positionProgress: CGFloat
     let metrics: DarkModeToggleMetrics
+    let visualStyle: DarkModeToggleVisualStyle
 
     var body: some View {
         let scale = metrics.celestialScale
         let clampedAppearanceProgress = min(max(appearanceProgress, 0), 1)
 
         ZStack(alignment: .topLeading) {
-            SunDisc(scale: scale)
+            sun(scale: scale)
                 .opacity(1 - clampedAppearanceProgress)
 
-            MoonDisc(scale: scale)
+            moon(scale: scale)
                 .opacity(clampedAppearanceProgress)
         }
         .frame(
@@ -26,6 +27,26 @@ struct CelestialThumb: View {
             y: metrics.celestialVerticalInset
         )
         .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private func sun(scale: CGFloat) -> some View {
+        switch visualStyle {
+        case .original:
+            SunDisc(scale: scale)
+        case .vivid:
+            VividSunDisc(scale: scale)
+        }
+    }
+
+    @ViewBuilder
+    private func moon(scale: CGFloat) -> some View {
+        switch visualStyle {
+        case .original:
+            MoonDisc(scale: scale)
+        case .vivid:
+            VividMoonDisc(scale: scale)
+        }
     }
 }
 
@@ -155,5 +176,102 @@ private struct MoonOcclusionShape: Shape {
         path.addLine(to: point(132.712, 22.837))
         path.closeSubpath()
         return path
+    }
+}
+
+private struct VividSunDisc: View {
+    let scale: CGFloat
+
+    private let sourceX: CGFloat = 111.5537
+    private let sourceY: CGFloat = 20.365
+    private let sourceSize: CGFloat = 45.4463
+
+    var body: some View {
+        Circle()
+            .fill(VividTogglePalette.sun)
+            .overlay {
+                Circle()
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.48),
+                                VividTogglePalette.sunHighlight.opacity(0.8),
+                                Color.black.opacity(0.18),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 2.1 * scale
+                    )
+            }
+            .frame(width: sourceSize * scale, height: sourceSize * scale)
+            .shadow(
+                color: VividTogglePalette.sun.opacity(0.54),
+                radius: 4.5 * scale
+            )
+            .shadow(
+                color: Color.black.opacity(0.42),
+                radius: 3.2 * scale,
+                x: 2.4 * scale,
+                y: 3.2 * scale
+            )
+            .offset(x: sourceX * scale, y: sourceY * scale)
+    }
+}
+
+private struct VividMoonDisc: View {
+    let scale: CGFloat
+
+    private let sourceX: CGFloat = 111.5537
+    private let sourceY: CGFloat = 20.365
+    private let sourceSize: CGFloat = 45.4463
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Circle()
+                .fill(VividTogglePalette.moon)
+
+            crater(x: 25, y: 6.5, diameter: 9.5)
+            crater(x: 7, y: 18, diameter: 15)
+            crater(x: 30, y: 30, diameter: 9.5)
+        }
+        .overlay {
+            Circle()
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.86),
+                            Color.white.opacity(0.18),
+                            Color.black.opacity(0.28),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 2.1 * scale
+                )
+        }
+        .frame(width: sourceSize * scale, height: sourceSize * scale)
+        .shadow(
+            color: Color.white.opacity(0.36),
+            radius: 5 * scale
+        )
+        .shadow(
+            color: Color.black.opacity(0.46),
+            radius: 3.2 * scale,
+            x: 2.4 * scale,
+            y: 3.2 * scale
+        )
+        .offset(x: sourceX * scale, y: sourceY * scale)
+    }
+
+    private func crater(x: CGFloat, y: CGFloat, diameter: CGFloat) -> some View {
+        Circle()
+            .fill(VividTogglePalette.moonCrater)
+            .overlay {
+                Circle()
+                    .stroke(Color.black.opacity(0.22), lineWidth: 1.2 * scale)
+            }
+            .frame(width: diameter * scale, height: diameter * scale)
+            .offset(x: x * scale, y: y * scale)
     }
 }
