@@ -5,6 +5,12 @@ import Testing
 
 @Suite("Public initializers")
 struct PublicInitializerTests {
+    @Test("constructs the concise Vivid initializer")
+    @MainActor
+    func conciseVividInitializer() {
+        _ = DarkModeToggle(vivid: .constant(false))
+    }
+
     @Test("keeps historical initializer defaults")
     @MainActor
     @available(*, deprecated)

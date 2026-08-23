@@ -6,9 +6,11 @@ import DarkModeSwitchDemoFeature
 @MainActor
 func exposesBuiltInStyles() {
     let toggle = DarkModeToggle(isDarkMode: .constant(false))
+    let vivid = DarkModeToggle(vivid: .constant(false))
 
     _ = toggle.darkModeStyle(.original)
     _ = toggle.darkModeStyle(.vivid)
     _ = toggle.darkModeStyle(.liquidGlass)
     _ = toggle.darkModeStyle(.automatic)
+    _ = vivid
 }

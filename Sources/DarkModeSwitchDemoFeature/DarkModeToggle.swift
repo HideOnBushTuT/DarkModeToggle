@@ -24,13 +24,13 @@ public struct DarkModeToggle: View {
         self.init(isDarkMode: isDarkMode, initializerStyle: .original)
     }
 
-    @available(
-        *,
-        deprecated,
-        message: "Use init(isDarkMode:) followed by .darkModeStyle(.vivid)."
-    )
+    public init(vivid: Binding<Bool>) {
+        self.init(isDarkMode: vivid, initializerStyle: .vivid)
+    }
+
+    @available(*, deprecated, renamed: "init(vivid:)")
     public init(vividIsDarkMode: Binding<Bool>) {
-        self.init(isDarkMode: vividIsDarkMode, initializerStyle: .vivid)
+        self.init(vivid: vividIsDarkMode)
     }
 
     private init(
