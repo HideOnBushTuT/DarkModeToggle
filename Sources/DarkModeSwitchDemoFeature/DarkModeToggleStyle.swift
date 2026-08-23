@@ -1,7 +1,7 @@
 import SwiftUI
 
 public extension DarkModeToggle {
-    /// A built-in visual treatment for ``DarkModeToggle``.
+    /// A built-in surface treatment for descendant dark-mode toggles.
     struct Style: Hashable, Sendable {
         fileprivate let storage: Storage
 
@@ -9,64 +9,71 @@ public extension DarkModeToggle {
             self.storage = storage
         }
 
-        /// Preserves the original soft day and night artwork on every platform.
-        public static let original = Self(.original)
+        /// Uses the existing non-Glass surface on every supported platform.
+        public static let standard = Self(.standard)
 
-        /// Uses the high-saturation artwork on every platform.
-        public static let vivid = Self(.vivid)
-
-        /// Uses native Liquid Glass on iOS 26+, and Original elsewhere.
-        public static let liquidGlass = Self(.liquidGlass)
-
-        /// Follows the newest supported system treatment, and Original elsewhere.
-        public static let automatic = Self(.automatic)
+        /// Uses native Liquid Glass on iOS 26+, and Standard elsewhere.
+        public static let glass = Self(.glass)
 
         fileprivate enum Storage: Hashable, Sendable {
-            case original
-            case vivid
-            case liquidGlass
-            case automatic
+            case standard
+            case glass
         }
     }
 }
 
 private struct DarkModeToggleStyleEnvironmentKey: EnvironmentKey {
-    static let defaultValue: DarkModeToggle.Style? = nil
+    static let defaultValue: DarkModeToggle.Style = .standard
 }
 
 extension EnvironmentValues {
-    // Optionality distinguishes no modifier from an explicit style, allowing
-    // compatibility initializers to supply their historical default.
-    var darkModeToggleStyle: DarkModeToggle.Style? {
+    // Standard is the natural default because Original/Vivid is selected by
+    // the initializer rather than inferred from the surface style.
+    var darkModeToggleStyle: DarkModeToggle.Style {
         get { self[DarkModeToggleStyleEnvironmentKey.self] }
         set { self[DarkModeToggleStyleEnvironmentKey.self] = newValue }
     }
 }
 
 public extension View {
-    /// Selects the visual treatment for descendant dark-mode toggles.
-    func darkModeStyle(_ style: DarkModeToggle.Style) -> some View {
+    /// Selects the surface treatment for descendant dark-mode toggles.
+    func style(_ style: DarkModeToggle.Style) -> some View {
         environment(\.darkModeToggleStyle, style)
     }
 }
 
+enum DarkModeToggleVariant: Equatable, Sendable {
+    case original
+    case vivid
+}
+
+enum DarkModeToggleSurface: Equatable, Sendable {
+    case standard
+    case glass
+}
+
+struct DarkModeToggleRendering: Equatable, Sendable {
+    let variant: DarkModeToggleVariant
+    let surface: DarkModeToggleSurface
+}
+
 enum DarkModeToggleStyleResolver {
     static func resolve(
-        environmentStyle: DarkModeToggle.Style?,
-        initializerStyle: DarkModeToggle.Style,
+        variant: DarkModeToggleVariant,
+        style: DarkModeToggle.Style,
         supportsLiquidGlass: Bool
-    ) -> DarkModeToggleVisualStyle {
-        let requestedStyle = environmentStyle ?? initializerStyle
+    ) -> DarkModeToggleRendering {
+        let surface: DarkModeToggleSurface
 
-        switch requestedStyle.storage {
-        case .original:
-            return .original
-        case .vivid:
-            return .vivid
-        case .liquidGlass, .automatic:
-            // Unsupported systems intentionally preserve the existing Original
-            // renderer instead of receiving an imitation glass treatment.
-            return supportsLiquidGlass ? .liquidGlass : .original
+        switch style.storage {
+        case .standard:
+            surface = .standard
+        case .glass:
+            // Unsupported systems keep the initialized artwork and drop only
+            // the surface instead of receiving an imitation Glass renderer.
+            surface = supportsLiquidGlass ? .glass : .standard
         }
+
+        return DarkModeToggleRendering(variant: variant, surface: surface)
     }
 }

@@ -10,8 +10,8 @@ enum TogglePalette {
 
 public struct DarkModeToggle: View {
     @Binding private var isDarkMode: Bool
-    let initializerStyle: Style
-    @Environment(\.darkModeToggleStyle) private var environmentStyle
+    let variant: DarkModeToggleVariant
+    @Environment(\.darkModeToggleStyle) private var style
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var committedProgress: CGFloat
     @State private var dragProgress: CGFloat?
@@ -21,11 +21,11 @@ public struct DarkModeToggle: View {
     @State private var suppressActivation = false
 
     public init(isDarkMode: Binding<Bool>) {
-        self.init(isDarkMode: isDarkMode, initializerStyle: .original)
+        self.init(isDarkMode: isDarkMode, variant: .original)
     }
 
     public init(vivid: Binding<Bool>) {
-        self.init(isDarkMode: vivid, initializerStyle: .vivid)
+        self.init(isDarkMode: vivid, variant: .vivid)
     }
 
     @available(*, deprecated, renamed: "init(vivid:)")
@@ -35,10 +35,10 @@ public struct DarkModeToggle: View {
 
     private init(
         isDarkMode: Binding<Bool>,
-        initializerStyle: Style
+        variant: DarkModeToggleVariant
     ) {
         _isDarkMode = isDarkMode
-        self.initializerStyle = initializerStyle
+        self.variant = variant
         _committedProgress = State(
             initialValue: DarkModeToggleInteraction.restingProgress(
                 isDarkMode: isDarkMode.wrappedValue
@@ -57,16 +57,16 @@ public struct DarkModeToggle: View {
         } label: {
             GeometryReader { proxy in
                 let metrics = DarkModeToggleMetrics(width: proxy.size.width)
-                let visualStyle = DarkModeToggleStyleResolver.resolve(
-                    environmentStyle: environmentStyle,
-                    initializerStyle: initializerStyle,
+                let rendering = DarkModeToggleStyleResolver.resolve(
+                    variant: variant,
+                    style: style,
                     supportsLiquidGlass: supportsLiquidGlass
                 )
 
                 DarkModeToggleVisuals(
                     appearanceProgress: appearanceProgress,
                     positionProgress: positionProgress,
-                    visualStyle: visualStyle,
+                    rendering: rendering,
                     metrics: metrics,
                     reduceMotion: reduceMotion,
                     onDragChanged: { value, presentedProgress in
@@ -242,16 +242,10 @@ public struct DarkModeToggle: View {
     }
 }
 
-enum DarkModeToggleVisualStyle: Equatable, Sendable {
-    case original
-    case vivid
-    case liquidGlass
-}
-
 private struct DarkModeToggleVisuals: View, @MainActor Animatable {
     var appearanceProgress: CGFloat
     var positionProgress: CGFloat
-    let visualStyle: DarkModeToggleVisualStyle
+    let rendering: DarkModeToggleRendering
     let metrics: DarkModeToggleMetrics
     let reduceMotion: Bool
     let onDragChanged: (DragGesture.Value, CGFloat) -> Void
@@ -274,7 +268,7 @@ private struct DarkModeToggleVisuals: View, @MainActor Animatable {
                 appearanceProgress: appearanceProgress,
                 positionProgress: positionProgress,
                 metrics: metrics,
-                visualStyle: visualStyle
+                variant: rendering.variant
             )
         }
         .frame(
@@ -297,7 +291,30 @@ private struct DarkModeToggleVisuals: View, @MainActor Animatable {
 
     @ViewBuilder
     private var track: some View {
-        switch visualStyle {
+        switch rendering.surface {
+        case .standard:
+            standardTrack
+        case .glass:
+            #if os(iOS)
+            if #available(iOS 26.0, *) {
+                LiquidGlassToggleTrack(
+                    progress: appearanceProgress,
+                    metrics: metrics,
+                    reduceMotion: reduceMotion,
+                    variant: rendering.variant
+                )
+            } else {
+                standardTrack
+            }
+            #else
+            standardTrack
+            #endif
+        }
+    }
+
+    @ViewBuilder
+    private var standardTrack: some View {
+        switch rendering.variant {
         case .original:
             ToggleTrack(
                 progress: appearanceProgress,
@@ -310,28 +327,6 @@ private struct DarkModeToggleVisuals: View, @MainActor Animatable {
                 metrics: metrics,
                 reduceMotion: reduceMotion
             )
-        case .liquidGlass:
-            #if os(iOS)
-            if #available(iOS 26.0, *) {
-                LiquidGlassToggleTrack(
-                    progress: appearanceProgress,
-                    metrics: metrics,
-                    reduceMotion: reduceMotion
-                )
-            } else {
-                ToggleTrack(
-                    progress: appearanceProgress,
-                    metrics: metrics,
-                    reduceMotion: reduceMotion
-                )
-            }
-            #else
-            ToggleTrack(
-                progress: appearanceProgress,
-                metrics: metrics,
-                reduceMotion: reduceMotion
-            )
-            #endif
         }
     }
 }
@@ -464,8 +459,7 @@ struct ToggleTrack: View {
 #Preview("Vivid Light") {
     @Previewable @State var isDarkMode = false
 
-    DarkModeToggle(isDarkMode: $isDarkMode)
-        .darkModeStyle(.vivid)
+    DarkModeToggle(vivid: $isDarkMode)
         .frame(width: 260)
         .padding()
         .background(Color(red: 235 / 255, green: 246 / 255, blue: 1))
@@ -474,8 +468,7 @@ struct ToggleTrack: View {
 #Preview("Vivid Dark") {
     @Previewable @State var isDarkMode = true
 
-    DarkModeToggle(isDarkMode: $isDarkMode)
-        .darkModeStyle(.vivid)
+    DarkModeToggle(vivid: $isDarkMode)
         .frame(width: 260)
         .padding()
         .background(Color(red: 66 / 255, green: 66 / 255, blue: 66 / 255))

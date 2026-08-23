@@ -6,6 +6,7 @@ struct LiquidGlassToggleTrack: View {
     let progress: CGFloat
     let metrics: DarkModeToggleMetrics
     let reduceMotion: Bool
+    let variant: DarkModeToggleVariant
 
     var body: some View {
         let sceneMetrics = metrics.liquidGlassSceneMetrics
@@ -17,14 +18,28 @@ struct LiquidGlassToggleTrack: View {
                 .frame(width: metrics.width, height: metrics.trackHeight)
                 .glassEffect(.regular.interactive(), in: Capsule())
 
-            ToggleTrack(
-                progress: progress,
-                metrics: sceneMetrics,
-                reduceMotion: reduceMotion
-            )
+            scene(metrics: sceneMetrics)
             .frame(width: sceneMetrics.width, height: sceneMetrics.trackHeight)
         }
         .frame(width: metrics.width, height: metrics.trackHeight)
+    }
+
+    @ViewBuilder
+    private func scene(metrics: DarkModeToggleMetrics) -> some View {
+        switch variant {
+        case .original:
+            ToggleTrack(
+                progress: progress,
+                metrics: metrics,
+                reduceMotion: reduceMotion
+            )
+        case .vivid:
+            VividToggleTrack(
+                progress: progress,
+                metrics: metrics,
+                reduceMotion: reduceMotion
+            )
+        }
     }
 }
 #endif

@@ -4,7 +4,7 @@ struct CelestialThumb: View {
     let appearanceProgress: CGFloat
     let positionProgress: CGFloat
     let metrics: DarkModeToggleMetrics
-    let visualStyle: DarkModeToggleVisualStyle
+    let variant: DarkModeToggleVariant
 
     var body: some View {
         let scale = metrics.celestialScale
@@ -31,8 +31,8 @@ struct CelestialThumb: View {
 
     @ViewBuilder
     private func sun(scale: CGFloat) -> some View {
-        switch visualStyle {
-        case .original, .liquidGlass:
+        switch variant {
+        case .original:
             SunDisc(scale: scale)
         case .vivid:
             VividSunDisc(scale: scale)
@@ -41,8 +41,8 @@ struct CelestialThumb: View {
 
     @ViewBuilder
     private func moon(scale: CGFloat) -> some View {
-        switch visualStyle {
-        case .original, .liquidGlass:
+        switch variant {
+        case .original:
             MoonDisc(scale: scale)
         case .vivid:
             VividMoonDisc(scale: scale)

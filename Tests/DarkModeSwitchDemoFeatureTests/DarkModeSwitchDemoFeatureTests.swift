@@ -5,84 +5,58 @@ import Testing
 
 @Suite("Public initializers")
 struct PublicInitializerTests {
-    @Test("constructs the concise Vivid initializer")
-    @MainActor
-    func conciseVividInitializer() {
-        _ = DarkModeToggle(vivid: .constant(false))
-    }
-
-    @Test("keeps historical initializer defaults")
+    @Test("keeps initializer-selected variants independent")
     @MainActor
     @available(*, deprecated)
-    func historicalDefaults() {
+    func initializerVariants() {
         let binding = Binding.constant(false)
 
-        #expect(DarkModeToggle(isDarkMode: binding).initializerStyle == .original)
-        #expect(DarkModeToggle(vividIsDarkMode: binding).initializerStyle == .vivid)
-    }
-
-    @Test("constructs every public modifier style")
-    @MainActor
-    func constructsModifierStyles() {
-        let binding = Binding.constant(false)
-
-        _ = DarkModeToggle(isDarkMode: binding).darkModeStyle(.original)
-        _ = DarkModeToggle(isDarkMode: binding).darkModeStyle(.vivid)
-        _ = DarkModeToggle(isDarkMode: binding).darkModeStyle(.liquidGlass)
-        _ = DarkModeToggle(isDarkMode: binding).darkModeStyle(.automatic)
+        #expect(DarkModeToggle(isDarkMode: binding).variant == .original)
+        #expect(DarkModeToggle(vivid: binding).variant == .vivid)
+        #expect(DarkModeToggle(vividIsDarkMode: binding).variant == .vivid)
     }
 }
 
 @Suite("Dark mode toggle styles")
 struct DarkModeToggleStyleTests {
-    @Test("stores an optional style in Environment values")
+    @Test("defaults Environment style to Standard")
     func environmentStorage() {
         var values = EnvironmentValues()
 
-        #expect(values.darkModeToggleStyle == nil)
-        values.darkModeToggleStyle = .vivid
-        #expect(values.darkModeToggleStyle == .vivid)
+        #expect(values.darkModeToggleStyle == .standard)
+        values.darkModeToggleStyle = .glass
+        #expect(values.darkModeToggleStyle == .glass)
     }
 
-    @Test("uses the initializer fallback when no modifier is present")
-    func initializerFallback() {
-        #expect(DarkModeToggleStyleResolver.resolve(
-            environmentStyle: nil,
-            initializerStyle: .vivid,
-            supportsLiquidGlass: true
-        ) == .vivid)
-    }
-
-    @Test("the nearest Environment style overrides the initializer")
-    func environmentOverride() {
-        #expect(DarkModeToggleStyleResolver.resolve(
-            environmentStyle: .original,
-            initializerStyle: .vivid,
-            supportsLiquidGlass: true
-        ) == .original)
-    }
-
-    @Test("resolves the complete platform capability matrix")
+    @Test("preserves variants across the capability matrix")
     func capabilityMatrix() {
-        #expect(resolve(.original, supportsLiquidGlass: false) == .original)
-        #expect(resolve(.original, supportsLiquidGlass: true) == .original)
-        #expect(resolve(.vivid, supportsLiquidGlass: false) == .vivid)
-        #expect(resolve(.vivid, supportsLiquidGlass: true) == .vivid)
-        #expect(resolve(.liquidGlass, supportsLiquidGlass: false) == .original)
-        #expect(resolve(.liquidGlass, supportsLiquidGlass: true) == .liquidGlass)
-        #expect(resolve(.automatic, supportsLiquidGlass: false) == .original)
-        #expect(resolve(.automatic, supportsLiquidGlass: true) == .liquidGlass)
+        #expect(resolve(.original, .standard, false) == value(.original, .standard))
+        #expect(resolve(.original, .standard, true) == value(.original, .standard))
+        #expect(resolve(.vivid, .standard, false) == value(.vivid, .standard))
+        #expect(resolve(.vivid, .standard, true) == value(.vivid, .standard))
+        #expect(resolve(.original, .glass, false) == value(.original, .standard))
+        #expect(resolve(.original, .glass, true) == value(.original, .glass))
+        #expect(resolve(.vivid, .glass, false) == value(.vivid, .standard))
+        #expect(resolve(.vivid, .glass, true) == value(.vivid, .glass))
     }
 
     private func resolve(
+        _ variant: DarkModeToggleVariant,
         _ style: DarkModeToggle.Style,
-        supportsLiquidGlass: Bool
-    ) -> DarkModeToggleVisualStyle {
+        _ supportsLiquidGlass: Bool
+    ) -> DarkModeToggleRendering {
         DarkModeToggleStyleResolver.resolve(
-            environmentStyle: style,
-            initializerStyle: .original,
+            variant: variant,
+            style: style,
             supportsLiquidGlass: supportsLiquidGlass
         )
+    }
+
+    private func value(
+        _ variant: DarkModeToggleVariant,
+        _ surface: DarkModeToggleSurface
+    ) -> DarkModeToggleRendering {
+        DarkModeToggleRendering(variant: variant, surface: surface)
     }
 }
 

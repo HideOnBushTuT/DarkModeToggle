@@ -1,16 +1,22 @@
+import DarkModeSwitchDemoFeature
 import SwiftUI
 import Testing
-import DarkModeSwitchDemoFeature
 
-@Test("exposes built-in styles to external consumers")
+@Test("exposes initializer variants and container styles")
 @MainActor
-func exposesBuiltInStyles() {
-    let toggle = DarkModeToggle(isDarkMode: .constant(false))
-    let vivid = DarkModeToggle(vivid: .constant(false))
+func exposesIndependentVariantAndStyleAPI() {
+    let standardGroup = VStack {
+        DarkModeToggle(isDarkMode: .constant(false))
+        DarkModeToggle(vivid: .constant(false))
+    }
+    .style(.standard)
 
-    _ = toggle.darkModeStyle(.original)
-    _ = toggle.darkModeStyle(.vivid)
-    _ = toggle.darkModeStyle(.liquidGlass)
-    _ = toggle.darkModeStyle(.automatic)
-    _ = vivid
+    let glassGroup = VStack {
+        DarkModeToggle(isDarkMode: .constant(false))
+        DarkModeToggle(vivid: .constant(false))
+    }
+    .style(.glass)
+
+    _ = standardGroup
+    _ = glassGroup
 }
