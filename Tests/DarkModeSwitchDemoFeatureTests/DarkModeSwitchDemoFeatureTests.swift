@@ -5,13 +5,25 @@ import Testing
 
 @Suite("Public initializers")
 struct PublicInitializerTests {
-    @Test("constructs the original and vivid styles independently")
+    @Test("keeps historical initializer defaults")
     @MainActor
-    func constructsBothStyles() {
+    @available(*, deprecated)
+    func historicalDefaults() {
         let binding = Binding.constant(false)
 
-        _ = DarkModeToggle(isDarkMode: binding)
-        _ = DarkModeToggle(vividIsDarkMode: binding)
+        #expect(DarkModeToggle(isDarkMode: binding).initializerStyle == .original)
+        #expect(DarkModeToggle(vividIsDarkMode: binding).initializerStyle == .vivid)
+    }
+
+    @Test("constructs every public modifier style")
+    @MainActor
+    func constructsModifierStyles() {
+        let binding = Binding.constant(false)
+
+        _ = DarkModeToggle(isDarkMode: binding).darkModeStyle(.original)
+        _ = DarkModeToggle(isDarkMode: binding).darkModeStyle(.vivid)
+        _ = DarkModeToggle(isDarkMode: binding).darkModeStyle(.liquidGlass)
+        _ = DarkModeToggle(isDarkMode: binding).darkModeStyle(.automatic)
     }
 }
 
