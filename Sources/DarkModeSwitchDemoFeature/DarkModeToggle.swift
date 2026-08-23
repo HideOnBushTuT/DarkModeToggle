@@ -28,6 +28,7 @@ public struct DarkModeToggle: View {
         self.init(isDarkMode: vivid, variant: .vivid)
     }
 
+    /// Retains the original Vivid label so existing 3.x callers keep compiling.
     @available(*, deprecated, renamed: "init(vivid:)")
     public init(vividIsDarkMode: Binding<Bool>) {
         self.init(vivid: vividIsDarkMode)

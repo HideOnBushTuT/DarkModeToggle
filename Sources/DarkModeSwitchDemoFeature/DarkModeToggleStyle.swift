@@ -36,7 +36,7 @@ extension EnvironmentValues {
 }
 
 public extension View {
-    /// Selects the surface treatment for descendant dark-mode toggles.
+    /// Selects the surface for descendant toggles; the nearest ancestor wins.
     func style(_ style: DarkModeToggle.Style) -> some View {
         environment(\.darkModeToggleStyle, style)
     }
