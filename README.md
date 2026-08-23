@@ -6,7 +6,9 @@ Kolodziejski 的 Power Apps `LightDarkModeAnimated` 视觉效果。
 - 支持 iOS 17+ 与 macOS 14+
 - 不依赖图片、Lottie 或第三方动画库
 - 接收标准 SwiftUI `Binding<Bool>`
-- 提供原始柔和样式和新增高饱和拟物样式，两者使用不同初始化方法
+- 提供 Original、Vivid、Liquid Glass 和 Automatic 四个内建样式值
+- 通过 `.darkModeStyle(...)` 为单个组件或整个视图树选择样式
+- iOS 26+ 使用系统原生 Liquid Glass；iOS 17–25 不模拟玻璃效果
 - 支持点击与水平拖动，松手时按预测终点吸附
 - 支持 Reduce Motion 和 VoiceOver
 - 包含交互数学、几何与源素材数据回归测试
@@ -37,7 +39,7 @@ GitHub 账号。
 https://github.com/HideOnBushTuT/DarkModeToggle.git
 ```
 
-依赖规则选择 **Up to Next Major Version**，起始版本为 `3.0.1`。
+依赖规则选择 **Up to Next Major Version**，起始版本为 `3.2.0`。
 
 也可以在另一个 Package 的 `Package.swift` 中声明：
 
@@ -45,7 +47,7 @@ https://github.com/HideOnBushTuT/DarkModeToggle.git
 dependencies: [
     .package(
         url: "https://github.com/HideOnBushTuT/DarkModeToggle.git",
-        from: "3.0.1"
+        from: "3.2.0"
     )
 ],
 targets: [
@@ -81,17 +83,34 @@ struct ContentView: View {
 }
 ```
 
-原始初始化方法保持不变：
+标准初始化方法保持不变；通过 View Modifier 选择内建样式：
 
 ```swift
 DarkModeToggle(isDarkMode: $isDarkMode)
+    .darkModeStyle(.original)
+
+DarkModeToggle(isDarkMode: $isDarkMode)
+    .darkModeStyle(.vivid)
+
+DarkModeToggle(isDarkMode: $isDarkMode)
+    .darkModeStyle(.liquidGlass)
+
+DarkModeToggle(isDarkMode: $isDarkMode)
+    .darkModeStyle(.automatic)
 ```
 
-需要使用新增高饱和样式时，改用独立初始化方法；无需传入样式枚举或配置参数：
+Modifier 写入 SwiftUI Environment，因此也可以放在容器上统一配置其后代开关；
+离组件最近的 `.darkModeStyle(...)` 优先。
 
-```swift
-DarkModeToggle(vividIsDarkMode: $isDarkMode)
-```
+| 样式 | iOS 17–25 | iOS 26+ | macOS |
+| --- | --- | --- | --- |
+| `.original` | Original | Original | Original |
+| `.vivid` | Vivid | Vivid | Vivid |
+| `.liquidGlass` | Original | 原生 Liquid Glass | Original |
+| `.automatic` | Original | 原生 Liquid Glass | Original |
+
+`init(vividIsDarkMode:)` 暂时保留以兼容已有源码，但已弃用。新代码应使用标准
+初始化方法并追加 `.darkModeStyle(.vivid)`。
 
 `DarkModeToggle` 只负责展示与切换绑定值。是否持久化状态、是否把状态应用到
 整个 App，由调用方决定。
@@ -103,13 +122,25 @@ Package 对外只暴露可复用的开关 View：
 ```swift
 public struct DarkModeToggle: View {
     public init(isDarkMode: Binding<Bool>)
+    @available(*, deprecated)
     public init(vividIsDarkMode: Binding<Bool>)
+
+    public struct Style: Hashable, Sendable {
+        public static let original: Style
+        public static let vivid: Style
+        public static let liquidGlass: Style
+        public static let automatic: Style
+    }
+}
+
+public extension View {
+    func darkModeStyle(_ style: DarkModeToggle.Style) -> some View
 }
 ```
 
-`init(isDarkMode:)` 永远使用原始样式，`init(vividIsDarkMode:)` 永远使用新增
-高饱和样式。两个入口共享同一套状态、拖动、吸附和无障碍行为，后续增加新视觉
-不会改变现有调用方的效果。
+没有 Modifier 时，`init(isDarkMode:)` 使用 Original；旧 Vivid 初始化器继续以
+Vivid 作为兼容默认值。Modifier 可以覆盖两者。所有样式共享同一套状态、拖动、
+吸附和无障碍行为。第一版只开放内建值，不开放自定义 Style 协议或构造方法。
 
 页面布局、状态持久化和 App 外观由使用方自己的 `ContentView` 或其他容器
 管理，不属于 Package 的公开 API。
@@ -118,12 +149,15 @@ public struct DarkModeToggle: View {
 
 ```text
 DarkModeToggle
+├── DarkModeToggle.Style + Environment
+│   └── Original / Vivid / Liquid Glass / Automatic 解析
 ├── DarkModeToggleInteraction
 │   └── 进度、方向、钳制与预测终点
 ├── DarkModeToggleVisuals
 │   ├── 可中断的当前呈现进度
 │   ├── ToggleTrack → 原始轨道
-│   └── VividToggleTrack → 高饱和轨道、光环和场景
+│   ├── VividToggleTrack → 高饱和轨道、光环和场景
+│   └── LiquidGlassToggleTrack → iOS 26+ 单层玻璃外壳 + Original 场景
 ├── ToggleTrack（原始样式）
 │   ├── DayScene → 4 组 Canvas 云层
 │   └── NightScene → 22 个 FourPointStar
@@ -138,8 +172,10 @@ DarkModeToggle
 主要文件职责：
 
 - `DarkModeToggle.swift`：按钮语义、拖动生命周期、呈现进度、轨道和场景组合。
+- `DarkModeToggleStyle.swift`：公开样式值、Environment Modifier、优先级与平台解析。
 - `DarkModeToggleInteraction.swift`：可独立测试的方向、进度与吸附计算。
 - `DarkModeToggleMetrics.swift`：将原始设计坐标按目标宽度等比缩放。
+- `LiquidGlassToggleTrack.swift`：iOS 26+ 原生交互式玻璃外壳和内缩 Original 场景。
 - `DarkModeToggleArt.swift`：保存云朵圆形、星星坐标、透明度和时长数据。
 - `DayScene.swift`：通过 `Canvas` 绘制并循环移动云层。
 - `NightScene.swift`：放置星星并按组循环改变透明度。
@@ -196,7 +232,7 @@ xcodebuildmcp swift-package test \
   --configuration Debug
 ```
 
-当前 11 项测试锁定：
+当前 17 项测试锁定：
 
 - 原始组件、轨道和天体画板的缩放关系。
 - 明暗状态、中间进度的天体位移与移动距离。
@@ -204,7 +240,9 @@ xcodebuildmcp swift-package test \
 - 横纵轴判定与预测终点的中点规则。
 - 四组云层的数量、圆形数据、透明度和循环时长。
 - 22 颗星星的数量、坐标、分组与闪烁时长。
-- 两个公开初始化方法都能独立构建，并保持原入口兼容。
+- 两个公开初始化方法的兼容默认值与四个公开 Modifier 样式都能构建。
+- Environment 可选值、最近值优先级和完整平台能力矩阵。
+- Liquid Glass 外壳内缩继续来自现有响应式轨道比例。
 - 新增样式的 2 组云层、6 颗星星及各自闪烁时长。
 - App 层 `ContentView.swift` 不会重新进入可复用 Package。
 
@@ -216,12 +254,15 @@ xcodebuildmcp swift-package test \
 - Minor：向后兼容的新能力或公开 API。
 - Major：模块名、公开初始化方法或行为的不兼容修改。
 
-当前版本为 `3.0.1`。App 使用
-`upToNextMajorVersion(from: "3.0.1")`，因此会接受 `3.x` 更新。已有
+当前版本为 `3.2.0`。App 使用
+`upToNextMajorVersion(from: "3.2.0")`，因此会接受后续 `3.x` 更新。已有
 `2.x` 使用方不会自动获得新的拖动行为，需要明确升级。
 
 版本历史：
 
+- `3.2.0`：增加 Environment 驱动的内建样式 API；iOS 26+ 可选择单层原生
+  Liquid Glass 外壳，旧系统保持 Original，不模拟玻璃效果。
+- `3.1.0`：增加独立 Vivid 高饱和拟物样式，并保留原始初始化入口。
 - `3.0.1`：恢复系统标准 Button 点击/VoiceOver 激活通道，仅在拖动序列中抑制
   重复 action，修复自动化与真实点击偶发丢失。
 - `3.0.0`：增加连续水平拖动、预测终点吸附，并让天体和日夜场景共享同一个
