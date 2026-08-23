@@ -15,6 +15,59 @@ struct PublicInitializerTests {
     }
 }
 
+@Suite("Dark mode toggle styles")
+struct DarkModeToggleStyleTests {
+    @Test("stores an optional style in Environment values")
+    func environmentStorage() {
+        var values = EnvironmentValues()
+
+        #expect(values.darkModeToggleStyle == nil)
+        values.darkModeToggleStyle = .vivid
+        #expect(values.darkModeToggleStyle == .vivid)
+    }
+
+    @Test("uses the initializer fallback when no modifier is present")
+    func initializerFallback() {
+        #expect(DarkModeToggleStyleResolver.resolve(
+            environmentStyle: nil,
+            initializerStyle: .vivid,
+            supportsLiquidGlass: true
+        ) == .vivid)
+    }
+
+    @Test("the nearest Environment style overrides the initializer")
+    func environmentOverride() {
+        #expect(DarkModeToggleStyleResolver.resolve(
+            environmentStyle: .original,
+            initializerStyle: .vivid,
+            supportsLiquidGlass: true
+        ) == .original)
+    }
+
+    @Test("resolves the complete platform capability matrix")
+    func capabilityMatrix() {
+        #expect(resolve(.original, supportsLiquidGlass: false) == .original)
+        #expect(resolve(.original, supportsLiquidGlass: true) == .original)
+        #expect(resolve(.vivid, supportsLiquidGlass: false) == .vivid)
+        #expect(resolve(.vivid, supportsLiquidGlass: true) == .vivid)
+        #expect(resolve(.liquidGlass, supportsLiquidGlass: false) == .original)
+        #expect(resolve(.liquidGlass, supportsLiquidGlass: true) == .liquidGlass)
+        #expect(resolve(.automatic, supportsLiquidGlass: false) == .original)
+        #expect(resolve(.automatic, supportsLiquidGlass: true) == .liquidGlass)
+    }
+
+    private func resolve(
+        _ style: DarkModeToggle.Style,
+        supportsLiquidGlass: Bool
+    ) -> DarkModeToggleVisualStyle {
+        DarkModeToggleStyleResolver.resolve(
+            environmentStyle: style,
+            initializerStyle: .original,
+            supportsLiquidGlass: supportsLiquidGlass
+        )
+    }
+}
+
 @Suite("Package boundaries")
 struct PackageBoundaryTests {
     @Test("keeps application ContentView out of the package")

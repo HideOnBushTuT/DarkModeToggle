@@ -32,7 +32,7 @@ struct CelestialThumb: View {
     @ViewBuilder
     private func sun(scale: CGFloat) -> some View {
         switch visualStyle {
-        case .original:
+        case .original, .liquidGlass:
             SunDisc(scale: scale)
         case .vivid:
             VividSunDisc(scale: scale)
@@ -42,7 +42,7 @@ struct CelestialThumb: View {
     @ViewBuilder
     private func moon(scale: CGFloat) -> some View {
         switch visualStyle {
-        case .original:
+        case .original, .liquidGlass:
             MoonDisc(scale: scale)
         case .vivid:
             VividMoonDisc(scale: scale)

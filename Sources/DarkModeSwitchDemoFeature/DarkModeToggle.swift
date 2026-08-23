@@ -222,9 +222,10 @@ public struct DarkModeToggle: View {
     }
 }
 
-enum DarkModeToggleVisualStyle: Sendable {
+enum DarkModeToggleVisualStyle: Equatable, Sendable {
     case original
     case vivid
+    case liquidGlass
 }
 
 private struct DarkModeToggleVisuals: View, @MainActor Animatable {
@@ -277,7 +278,7 @@ private struct DarkModeToggleVisuals: View, @MainActor Animatable {
     @ViewBuilder
     private var track: some View {
         switch visualStyle {
-        case .original:
+        case .original, .liquidGlass:
             ToggleTrack(
                 progress: appearanceProgress,
                 metrics: metrics,
