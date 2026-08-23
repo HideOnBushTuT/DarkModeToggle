@@ -298,7 +298,7 @@ private struct DarkModeToggleVisuals: View, @MainActor Animatable {
     @ViewBuilder
     private var track: some View {
         switch visualStyle {
-        case .original, .liquidGlass:
+        case .original:
             ToggleTrack(
                 progress: appearanceProgress,
                 metrics: metrics,
@@ -310,11 +310,33 @@ private struct DarkModeToggleVisuals: View, @MainActor Animatable {
                 metrics: metrics,
                 reduceMotion: reduceMotion
             )
+        case .liquidGlass:
+            #if os(iOS)
+            if #available(iOS 26.0, *) {
+                LiquidGlassToggleTrack(
+                    progress: appearanceProgress,
+                    metrics: metrics,
+                    reduceMotion: reduceMotion
+                )
+            } else {
+                ToggleTrack(
+                    progress: appearanceProgress,
+                    metrics: metrics,
+                    reduceMotion: reduceMotion
+                )
+            }
+            #else
+            ToggleTrack(
+                progress: appearanceProgress,
+                metrics: metrics,
+                reduceMotion: reduceMotion
+            )
+            #endif
         }
     }
 }
 
-private struct ToggleTrack: View {
+struct ToggleTrack: View {
     let progress: CGFloat
     let metrics: DarkModeToggleMetrics
     let reduceMotion: Bool

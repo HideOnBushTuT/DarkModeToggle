@@ -118,6 +118,16 @@ struct DarkModeToggleMetricsTests {
         #expect(abs(metrics.translationX(progress: 0.5) - (-56.35838150)) < 0.0001)
         #expect(abs(metrics.translationTravel - 67.63005780) < 0.0001)
     }
+
+    @Test("derives the Liquid Glass scene from the existing track scale")
+    func liquidGlassGeometry() {
+        let metrics = DarkModeToggleMetrics(width: 130)
+        let sceneMetrics = metrics.liquidGlassSceneMetrics
+
+        #expect(abs(metrics.liquidGlassShellInset - (390.0 / 173.0)) < 0.0001)
+        #expect(abs(sceneMetrics.width - (130.0 - 780.0 / 173.0)) < 0.0001)
+        #expect(sceneMetrics.trackHeight < metrics.trackHeight)
+    }
 }
 
 @Suite("Dark mode toggle interaction")
