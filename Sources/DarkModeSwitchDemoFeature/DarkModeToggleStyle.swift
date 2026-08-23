@@ -10,16 +10,16 @@ public extension DarkModeToggle {
         }
 
         /// Preserves the original soft day and night artwork on every platform.
-        static let original = Self(.original)
+        public static let original = Self(.original)
 
         /// Uses the high-saturation artwork on every platform.
-        static let vivid = Self(.vivid)
+        public static let vivid = Self(.vivid)
 
         /// Uses native Liquid Glass on iOS 26+, and Original elsewhere.
-        static let liquidGlass = Self(.liquidGlass)
+        public static let liquidGlass = Self(.liquidGlass)
 
         /// Follows the newest supported system treatment, and Original elsewhere.
-        static let automatic = Self(.automatic)
+        public static let automatic = Self(.automatic)
 
         fileprivate enum Storage: Hashable, Sendable {
             case original
