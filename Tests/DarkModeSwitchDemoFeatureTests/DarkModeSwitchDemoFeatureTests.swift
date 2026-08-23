@@ -75,6 +75,31 @@ struct PackageBoundaryTests {
 
         #expect(!FileManager.default.fileExists(atPath: appContentView.path))
     }
+
+    @Test("guards iOS 26 SDK symbols from the Swift 6.1 compiler")
+    func guardsLiquidGlassSDKSymbols() throws {
+        let packageRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sources = packageRoot
+            .appending(path: "Sources")
+            .appending(path: "DarkModeSwitchDemoFeature")
+        let compilerGuard = "#if os(iOS) && compiler(>=6.2)"
+        let nativeTrackSource = try String(
+            contentsOf: sources.appending(path: "LiquidGlassToggleTrack.swift"),
+            encoding: .utf8
+        )
+        let toggleSource = try String(
+            contentsOf: sources.appending(path: "DarkModeToggle.swift"),
+            encoding: .utf8
+        )
+
+        // The native track and both references to it must disappear entirely
+        // when this package is compiled by the Swift 6.1 toolchain in Xcode 16.
+        #expect(nativeTrackSource.hasPrefix(compilerGuard))
+        #expect(toggleSource.components(separatedBy: compilerGuard).count - 1 == 2)
+    }
 }
 
 @Suite("Dark mode toggle metrics")

@@ -104,7 +104,9 @@ public struct DarkModeToggle: View {
     }
 
     private var supportsLiquidGlass: Bool {
-        #if os(iOS)
+        #if os(iOS) && compiler(>=6.2)
+        // The compiler check keeps iOS 26 symbols out of Xcode 16 builds;
+        // this runtime check then protects devices running iOS 17 through 25.
         if #available(iOS 26.0, *) {
             return true
         }
@@ -296,7 +298,9 @@ private struct DarkModeToggleVisuals: View, @MainActor Animatable {
         case .standard:
             standardTrack
         case .glass:
-            #if os(iOS)
+            #if os(iOS) && compiler(>=6.2)
+            // LiquidGlassToggleTrack does not exist for older compilers, so
+            // those builds stay on the unchanged standard rendering path.
             if #available(iOS 26.0, *) {
                 LiquidGlassToggleTrack(
                     progress: appearanceProgress,

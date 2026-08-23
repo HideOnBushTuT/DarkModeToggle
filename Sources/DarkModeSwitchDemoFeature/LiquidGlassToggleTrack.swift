@@ -1,6 +1,8 @@
-#if os(iOS)
+#if os(iOS) && compiler(>=6.2)
 import SwiftUI
 
+// Xcode 26 is the first release whose Swift compiler can resolve the iOS 26
+// Liquid Glass symbols below. Keep this whole type invisible to older SDKs.
 @available(iOS 26.0, *)
 struct LiquidGlassToggleTrack: View {
     let progress: CGFloat
