@@ -5,13 +5,58 @@ import Testing
 
 @Suite("Public initializers")
 struct PublicInitializerTests {
-    @Test("constructs the original and vivid styles independently")
+    @Test("keeps initializer-selected variants independent")
     @MainActor
-    func constructsBothStyles() {
+    @available(*, deprecated)
+    func initializerVariants() {
         let binding = Binding.constant(false)
 
-        _ = DarkModeToggle(isDarkMode: binding)
-        _ = DarkModeToggle(vividIsDarkMode: binding)
+        #expect(DarkModeToggle(isDarkMode: binding).variant == .original)
+        #expect(DarkModeToggle(vivid: binding).variant == .vivid)
+        #expect(DarkModeToggle(vividIsDarkMode: binding).variant == .vivid)
+    }
+}
+
+@Suite("Dark mode toggle styles")
+struct DarkModeToggleStyleTests {
+    @Test("defaults Environment style to Standard")
+    func environmentStorage() {
+        var values = EnvironmentValues()
+
+        #expect(values.darkModeToggleStyle == .standard)
+        values.darkModeToggleStyle = .glass
+        #expect(values.darkModeToggleStyle == .glass)
+    }
+
+    @Test("preserves variants across the capability matrix")
+    func capabilityMatrix() {
+        #expect(resolve(.original, .standard, false) == value(.original, .standard))
+        #expect(resolve(.original, .standard, true) == value(.original, .standard))
+        #expect(resolve(.vivid, .standard, false) == value(.vivid, .standard))
+        #expect(resolve(.vivid, .standard, true) == value(.vivid, .standard))
+        #expect(resolve(.original, .glass, false) == value(.original, .standard))
+        #expect(resolve(.original, .glass, true) == value(.original, .glass))
+        #expect(resolve(.vivid, .glass, false) == value(.vivid, .standard))
+        #expect(resolve(.vivid, .glass, true) == value(.vivid, .glass))
+    }
+
+    private func resolve(
+        _ variant: DarkModeToggleVariant,
+        _ style: DarkModeToggle.Style,
+        _ supportsLiquidGlass: Bool
+    ) -> DarkModeToggleRendering {
+        DarkModeToggleStyleResolver.resolve(
+            variant: variant,
+            style: style,
+            supportsLiquidGlass: supportsLiquidGlass
+        )
+    }
+
+    private func value(
+        _ variant: DarkModeToggleVariant,
+        _ surface: DarkModeToggleSurface
+    ) -> DarkModeToggleRendering {
+        DarkModeToggleRendering(variant: variant, surface: surface)
     }
 }
 
@@ -29,6 +74,31 @@ struct PackageBoundaryTests {
             .appending(path: "ContentView.swift")
 
         #expect(!FileManager.default.fileExists(atPath: appContentView.path))
+    }
+
+    @Test("guards iOS 26 SDK symbols from the Swift 6.1 compiler")
+    func guardsLiquidGlassSDKSymbols() throws {
+        let packageRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sources = packageRoot
+            .appending(path: "Sources")
+            .appending(path: "DarkModeSwitchDemoFeature")
+        let compilerGuard = "#if os(iOS) && compiler(>=6.2)"
+        let nativeTrackSource = try String(
+            contentsOf: sources.appending(path: "LiquidGlassToggleTrack.swift"),
+            encoding: .utf8
+        )
+        let toggleSource = try String(
+            contentsOf: sources.appending(path: "DarkModeToggle.swift"),
+            encoding: .utf8
+        )
+
+        // The native track and both references to it must disappear entirely
+        // when this package is compiled by the Swift 6.1 toolchain in Xcode 16.
+        #expect(nativeTrackSource.hasPrefix(compilerGuard))
+        #expect(toggleSource.components(separatedBy: compilerGuard).count - 1 == 2)
     }
 }
 
@@ -52,6 +122,16 @@ struct DarkModeToggleMetricsTests {
         #expect(abs(metrics.translationX(isDarkMode: true) - (-22.54335260)) < 0.0001)
         #expect(abs(metrics.translationX(progress: 0.5) - (-56.35838150)) < 0.0001)
         #expect(abs(metrics.translationTravel - 67.63005780) < 0.0001)
+    }
+
+    @Test("derives the Liquid Glass scene from the existing track scale")
+    func liquidGlassGeometry() {
+        let metrics = DarkModeToggleMetrics(width: 130)
+        let sceneMetrics = metrics.liquidGlassSceneMetrics
+
+        #expect(abs(metrics.liquidGlassShellInset - (390.0 / 173.0)) < 0.0001)
+        #expect(abs(sceneMetrics.width - (130.0 - 780.0 / 173.0)) < 0.0001)
+        #expect(sceneMetrics.trackHeight < metrics.trackHeight)
     }
 }
 

@@ -7,6 +7,7 @@ struct DarkModeToggleMetrics: Sendable {
     static let celestialWidthMultiplier: CGFloat = 1.2
     static let lightTranslationX: CGFloat = -100
     static let darkTranslationX: CGFloat = -25
+    static let liquidGlassShellInset: CGFloat = 3
 
     let width: CGFloat
 
@@ -20,6 +21,14 @@ struct DarkModeToggleMetrics: Sendable {
 
     var trackHeight: CGFloat {
         Self.trackArtboard.height * trackScale
+    }
+
+    var liquidGlassShellInset: CGFloat {
+        Self.liquidGlassShellInset * trackScale
+    }
+
+    var liquidGlassSceneMetrics: DarkModeToggleMetrics {
+        DarkModeToggleMetrics(width: width - 2 * liquidGlassShellInset)
     }
 
     var celestialScale: CGFloat {
